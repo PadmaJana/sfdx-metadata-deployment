@@ -1,32 +1,30 @@
-
 name: Salesforce Apex Tests
 
 on:
   push:
-    branches:
-      - dev
+    branches: [dev]
 
 jobs:
   apex-tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      # Step 1: Checkout your code
+      - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Install Salesforce CLI
-        run: npm install --global @salesforce/cli
+      # Step 2: Setup Salesforce CLI and authenticate
+      - name: Setup Salesforce CLI (Dev)
+        uses: sfdx-actions/setup-sfdx@v1
+        with:
+          sfdx-auth-url: ${{ secrets.DEVHUB_SFDX_AUTH_URL }}
 
-      - name: Authenticate to DevSandbox
-        run: echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
-
-      - name: Deploy Apex Classes Only
-        run: |
-          sf project deploy start --source-dir force-app/main/default/classes --target-org DevSandbox --test-level RunLocalTests
-
+      # Step 3: Run all Apex tests with code coverage
       - name: Run Apex Tests with Coverage
-        run: sf apex run test --target-org DevSandbox --result-format human --code-coverage --wait 10
+        run: |
+          sfdx force:apex:test:run --resultformat human --codecoverage --wait 10
 
+      # Step 4: Send Email Notification if tests fail
       - name: Send Email on Apex Test Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
@@ -35,9 +33,9 @@ jobs:
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Apex Test Failure"
+          subject: "🚨 Apex Test Failure on branch ${{ github.ref }}"
           to: apadmajan650@gmail.com
           from: ci-cd@yourcompany.com
           body: |
-            🚨 Apex Test failed on branch ${{ github.ref }}.
-            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Apex tests failed on branch ${{ github.ref }}.
+            Check logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
