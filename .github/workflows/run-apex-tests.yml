@@ -1,31 +1,37 @@
-name: Salesforce Apex Tests
+name: Salesforce CI/CD - Multi-Package Deployment & Apex Tests
 
 on:
   push:
     branches: [dev]
 
 jobs:
-  apex-tests:
+  deploy-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout your code
-      - name: Checkout Repo
+      # Step 1: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Setup Salesforce CLI and authenticate
-      - name: Setup Salesforce CLI (Dev)
-        uses: sfdx-actions/setup-sfdx@v1
-        with:
-          sfdx-auth-url: ${{ secrets.DEVHUB_SFDX_AUTH_URL }}
+      # Step 2: Install Salesforce CLI
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
 
-      # Step 3: Run all Apex tests with code coverage
-      - name: Run Apex Tests with Coverage
+      # Step 3: Authenticate to DevSandbox
+      - name: Authenticate to DevSandbox
+        run: echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
+
+      # Step 4: Deploy multiple packages (adjust paths as needed)
+      - name: Deploy All Packages
         run: |
-          sfdx force:apex:test:run --resultformat human --codecoverage --wait 10
+          sf project deploy start --source-dir force-app/main/default,core/main/default,utility/main/default --target-org DevSandbox --test-level RunLocalTests
 
-      # Step 4: Send Email Notification if tests fail
-      - name: Send Email on Apex Test Failure
+      # Step 5: Run Apex tests with code coverage
+      - name: Run Apex Tests with Coverage
+        run: sf apex run test --target-org DevSandbox --result-format human --code-coverage --wait 10
+
+      # Step 6: Send email notification on failure
+      - name: Send Email on Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
         with:
@@ -33,7 +39,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 Apex Test Failure on branch ${{ github.ref }}"
+          subject: "🚨 Salesforce Apex Test Failure on branch ${{ github.ref }}"
           to: apadmajan650@gmail.com
           from: ci-cd@yourcompany.com
           body: |
