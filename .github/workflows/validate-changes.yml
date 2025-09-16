@@ -21,14 +21,10 @@ jobs:
       - name: Authenticate DevSandbox
         shell: bash
         run: |
-          # Save secret to file, remove Windows carriage returns
-          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | tr -d '\r' > sfdx_auth.txt
+          echo "${{ secrets.DEV_SF_AUTH_URL }}" | tr -d '\r' | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
           
-          # Authenticate and set alias & default username
-          sfdx auth:sfdxurl:store -f sfdx_auth.txt --alias DevSandbox --setdefaultusername
-          
-          # Verify immediately in the same shell
-          sfdx force:org:display -u DevSandbox
+          # Verify authentication immediately
+          sf org display --target-org DevSandbox
 
       # 4️⃣ Validate Metadata Deployment
       - name: Validate Metadata Deployment
