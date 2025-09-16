@@ -1,38 +1,32 @@
-name: Run Apex Tests
+name: Salesforce Apex Tests
 
 on:
-  pull_request:
+  push:
     branches:
       - dev
-      - uat
-      - main
 
 jobs:
   apex-tests:
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ Checkout repo
-      - name: Checkout Repo
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 2️⃣ Install Salesforce CLI
       - name: Install Salesforce CLI
-        run: npm install sfdx-cli --global
+        run: npm install --global @salesforce/cli
 
-      # 3️⃣ Authenticate DevSandbox
       - name: Authenticate to DevSandbox
         run: echo "${{ secrets.DEV_SF_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
 
-      # 4️⃣ Verify authentication (optional but recommended)
-      - name: Verify DevSandbox Auth
-        run: sfdx force:org:display -u DevSandbox
+      - name: Deploy Apex Classes Only
+        run: |
+          sf project deploy start --source-dir force-app/main/default/classes --target-org DevSandbox --test-level RunLocalTests
 
-      # 5️⃣ Run Apex Tests
-      - name: Run Apex Tests
-        run: sfdx force:apex:test:run -u DevSandbox --resultformat human --codecoverage --wait 10
+      - name: Run Apex Tests with Coverage
+        run: sf apex run test --target-org DevSandbox --result-format human --code-coverage --wait 10
 
-      # 6️⃣ Send email if tests fail
-      - name: Send Email on Failure
+      - name: Send Email on Apex Test Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
         with:
@@ -40,9 +34,9 @@ jobs:
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 Salesforce Apex Test Failure on branch ${{ github.ref }}"
+          subject: "Apex Test Failure"
           to: apadmajan650@gmail.com
           from: ci-cd@yourcompany.com
           body: |
-            Apex tests failed on branch ${{ github.ref }}.
-            Check logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🚨 Apex Test failed on branch ${{ github.ref }}.
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

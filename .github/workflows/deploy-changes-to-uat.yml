@@ -8,41 +8,31 @@ on:
 jobs:
   deploy-uat:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
-      - name: Install Salesforce CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install wget unzip -y
-          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-          mkdir sfdx
-          tar xJf sfdx-linux-amd64.tar.xz -C sfdx --strip-components 1
-          ./sfdx/install
-          sfdx version
+    - name: Install Salesforce CLI
+      run: npm install --global @salesforce/cli
 
-      - name: Authenticate UAT Org
-        run: |
-          echo "${{ secrets.UAT_SFDX_AUTH_URL }}" > sfdx_auth.txt
-          sfdx auth:sfdxurl:store -f sfdx_auth.txt -a UATSandbox
+    - name: Authenticate to UAT Sandbox
+      run: echo "${{ secrets.UAT_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias UATSandbox --sfdx-url-stdin
 
-      - name: Deploy Metadata to UAT
-        run: |
-          sfdx force:source:deploy -p force-app/main/default,core/main/default,utility/main/default \
-          -u UATSandbox --testlevel RunLocalTests
+    - name: Deploy Metadata to UAT
+      run: sf project deploy start --source-dir force-app/main/default --target-org UATSandbox --wait 10
 
-      - name: Send Email on Deploy to UAT Failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Deploy to UAT Failure"
-          to: apadmajan650@gmail.com
-          from: ci-cd@yourcompany.com
-          body: |
-            🚨 Deployment to UAT failed on branch ${{ github.ref }}.
-            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    - name: Send Email on Deploy to UAT Failure
+      if: failure()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "Deploy to UAT Failure"
+        to: apadmajan650@gmail.com
+        from: ci-cd@yourcompany.com
+        body: |
+          🚨 Deployment to UAT failed on branch ${{ github.ref }}.
+          Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
