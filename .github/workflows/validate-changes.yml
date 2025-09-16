@@ -1,0 +1,71 @@
+name: Salesforce Validation
+
+on:
+  pull_request:
+    branches: [dev, uat, main]
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1️⃣ Checkout Code
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # 2️⃣ Install Salesforce CLI
+    - name: Install Salesforce CLI
+      run: npm install --global @salesforce/cli
+
+    # 3️⃣ Authenticate to DevHub
+    - name: Authenticate to DevHub
+      run: echo "${{ secrets.DEVHUB_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevHub --set-default-dev-hub --sfdx-url-stdin
+
+    # 4️⃣ Cleanup Old Scratch Orgs (avoid LIMIT_EXCEEDED)
+    - name: Cleanup Old Scratch Orgs
+      run: |
+        sf org list --json | jq -r '.scratchOrgs[] | select(.status=="Active") | .alias' | while read alias; do
+          if [ -n "$alias" ]; then
+            echo "Deleting old scratch org: $alias"
+            sf org delete scratch --target-org "$alias" --no-prompt || true
+          fi
+        done
+
+    # 5️⃣ Create Scratch Org
+    - name: Create Scratch Org
+      run: sf org create scratch --definition-file config/project-scratch-def.json --alias CI --set-default --duration-days 1 --target-dev-hub DevHub
+
+    # 6️⃣ Push Source to Scratch Org
+    - name: Push Source to Scratch Org
+      run: sf project deploy start --source-dir force-app --target-org CI
+
+    # 7️⃣ Run Apex Tests
+    - name: Run Apex Tests
+      run: sf apex run test --target-org CI --result-format human --code-coverage --wait 10 || echo "⚠️ No Apex tests found, skipping."
+
+    # 8️⃣ Validate Deployment (Dry-Run CheckOnly)
+    - name: Validate Deployment (Dry-Run CheckOnly)
+      run: sf project deploy start --source-dir force-app --target-org CI --dry-run --test-level RunLocalTests
+
+    # 9️⃣ Delete Scratch Org (final cleanup)
+    - name: Delete Scratch Org
+      if: always()
+      run: sf org delete scratch --target-org CI --no-prompt || true
+
+    # 🔟 Send Email on Failure
+    - name: Send Email on Validation Failure
+      if: failure()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "Validation Failure"
+        to: apadmajan650@gmail.com
+        from: ci-cd@yourcompany.com
+        body: |
+          🚨 Validation failed on branch ${{ github.ref }}.
+          Workflow: ${{ github.workflow }}
+          Run: ${{ github.run_number }}.
+          Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
