@@ -12,8 +12,22 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
+      # Install Salesforce CLI
+      - name: Install Salesforce CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget unzip -y
+          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+          mkdir sfdx
+          tar xJf sfdx-linux-amd64.tar.xz -C sfdx --strip-components 1
+          ./sfdx/install
+          sfdx version
+
+      # Authenticate Dev Org using sfdx-url-file
       - name: Authenticate Dev Org
-        run: sfdx auth:sfdxurl:store -f <(echo "${{ secrets.DEV_SFDX_AUTH_URL }}") -a DevSandbox
+        run: |
+          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" > sfdx_auth.txt
+          sfdx auth:sfdxurl:store -f sfdx_auth.txt -a DevSandbox
 
       - name: Validate Metadata Deployment
         run: |
