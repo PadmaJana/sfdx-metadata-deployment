@@ -11,7 +11,7 @@ jobs:
   apex-tests:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
@@ -19,19 +19,24 @@ jobs:
       - name: Install Salesforce CLI
         run: npm install sfdx-cli --global
 
-      # 3️⃣ Authenticate DevSandbox org using SFDX Auth URL
-      - name: Authenticate Dev Org
+      # 3️⃣ Authenticate DevSandbox
+      - name: Authenticate DevSandbox
         run: |
-          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" > sfdx_auth.txt
-          sfdx auth:sfdxurl:store -f sfdx_auth.txt -a DevSandbox
-      - name: Verify Authentication
-        run: sfdx org:list
+          # Remove any extra whitespace/newlines from secret
+          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | tr -d '\r' > sfdx_auth.txt
+          
+          # Authenticate and set as default username
+          sfdx auth:sfdxurl:store -f sfdx_auth.txt --setdefaultusername -a DevSandbox
 
-      # 4️⃣ Run Apex Tests
+      # 4️⃣ Verify authentication (optional but recommended)
+      - name: Verify DevSandbox Auth
+        run: sfdx force:org:display -u DevSandbox
+
+      # 5️⃣ Run Apex Tests
       - name: Run Apex Tests
         run: sfdx force:apex:test:run -u DevSandbox --resultformat human --codecoverage --wait 10
 
-      # 5️⃣ Send Email on Failure
+      # 6️⃣ Send email if tests fail
       - name: Send Email on Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
