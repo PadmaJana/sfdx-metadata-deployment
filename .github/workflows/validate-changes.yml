@@ -13,14 +13,14 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Install Salesforce CLI
+      # 2️⃣ Install Salesforce CLI (sfdx)
       - name: Install Salesforce CLI
         run: npm install sfdx-cli --global
 
-      # 3️⃣ Authenticate DevSandbox using sfdx
+      # 3️⃣ Authenticate DevSandbox using SFDX Auth URL
       - name: Authenticate to DevSandbox
         run: |
-          # Clean secret and save to file
+          # Clean secret (remove Windows carriage returns) and save to file
           echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | tr -d '\r' > sfdx_auth.txt
           
           # Authenticate and set default username
