@@ -18,19 +18,19 @@ jobs:
         run: npm install sfdx-cli --global
 
       # 3️⃣ Authenticate DevSandbox using SFDX Auth URL
-      - name: Authenticate to DevSandbox
+      - name: Authenticate DevSandbox
+        shell: bash
         run: |
-          # Clean secret (remove Windows carriage returns) and save to file
+          # Save secret to file, remove Windows carriage returns
           echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | tr -d '\r' > sfdx_auth.txt
           
-          # Authenticate and set default username
+          # Authenticate and set alias & default username
           sfdx auth:sfdxurl:store -f sfdx_auth.txt --alias DevSandbox --setdefaultusername
+          
+          # Verify immediately in the same shell
+          sfdx force:org:display -u DevSandbox
 
-      # 4️⃣ Verify authentication
-      - name: Verify DevSandbox Auth
-        run: sfdx force:org:display -u DevSandbox
-
-      # 5️⃣ Validate Metadata Deployment
+      # 4️⃣ Validate Metadata Deployment
       - name: Validate Metadata Deployment
         run: |
           sfdx force:source:deploy \
@@ -40,7 +40,7 @@ jobs:
           --ignorewarnings \
           --json
 
-      # 6️⃣ Send Email on Failure
+      # 5️⃣ Send Email on Failure
       - name: Send Email on Validation Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
