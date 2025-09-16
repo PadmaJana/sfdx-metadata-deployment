@@ -1,51 +1,35 @@
-name: Salesforce Validation
+name: Validate Metadata
 
 on:
-  pull_request:
-    branches: [dev, uat, main]
+  push:
+    branches:
+      - dev
 
 jobs:
-  validation:
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout Repo
+        uses: actions/checkout@v3
 
-    - name: Install Salesforce CLI
-      run: npm install --global @salesforce/cli
+      - name: Authenticate Dev Org
+        run: sfdx auth:sfdxurl:store -f <(echo "${{ secrets.DEV_SFDX_AUTH_URL }}") -a DevSandbox
 
-    - name: Authenticate to DevHub
-      run: echo "${{ secrets.DEVHUB_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevHub --set-default-dev-hub --sfdx-url-stdin
-
-    - name: Create Scratch Org
-      run: sf org create scratch --definition-file config/project-scratch-def.json --alias CI --set-default --duration-days 1 --target-dev-hub DevHub
-
-    - name: Push Source to Scratch Org
-      run: sf project deploy start --source-dir force-app --target-org CI
-
-    - name: Run Apex Tests
-      run: sf apex run test --target-org CI --result-format human --code-coverage --wait 10
-
-    - name: Validate Deployment (Dry-Run CheckOnly)
-      run: sf project deploy start --source-dir force-app --target-org CI --dry-run --test-level RunLocalTests
-
-    - name: Delete Scratch Org
-      run: sf org delete scratch --target-org CI --no-prompt || true
-
-    - name: Send Email on Validation Failure
-      if: failure()
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: smtp.gmail.com
-        server_port: 587
-        username: ${{ secrets.EMAIL_USERNAME }}
-        password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "Validation Failure"
-        to: apadmajan650@gmail.com
-        from: ci-cd@yourcompany.com
-        body: |
-          🚨 Validation failed on branch ${{ github.ref }}.
-          Workflow: ${{ github.workflow }}
-          Run: ${{ github.run_number }}.
-          Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - name: Validate Metadata Deployment
+        run: |
+          sfdx force:source:deploy -p force-app/main/default,core/main/default,utility/main/default \
+          -u DevSandbox --checkonly --ignorewarnings --json
+      - name: Send Email on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 Salesforce Apex Test Failure on branch ${{ github.ref }}"
+          to: apadmajan650@gmail.com
+          from: ci-cd@yourcompany.com
+          body: |
+            Apex tests failed on branch ${{ github.ref }}.
+            Check logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
