@@ -1,36 +1,37 @@
-name: Salesforce CI/CD - Multi-Package Deployment & Apex Tests
+name: Run Apex Tests
 
 on:
-  push:
-    branches: [dev]
+  pull_request:
+    branches:
+      - dev
+      - uat
+      - main
 
 jobs:
-  deploy-and-test:
+  apex-tests:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout code
-      - name: Checkout Repository
+      - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # Step 2: Install Salesforce CLI
       - name: Install Salesforce CLI
-        run: npm install --global @salesforce/cli
-
-      # Step 3: Authenticate to DevSandbox
-      - name: Authenticate to DevSandbox
-        run: echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
-
-      # Step 4: Deploy multiple packages (adjust paths as needed)
-      - name: Deploy All Packages
         run: |
-          sf project deploy start --source-dir force-app/main/default,core/main/default,utility/main/default --target-org DevSandbox --test-level RunLocalTests
+          sudo apt-get update
+          sudo apt-get install wget unzip -y
+          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+          mkdir sfdx
+          tar xJf sfdx-linux-amd64.tar.xz -C sfdx --strip-components 1
+          ./sfdx/install
+          sfdx version
 
-      # Step 5: Run Apex tests with code coverage
-      - name: Run Apex Tests with Coverage
-        run: sf apex run test --target-org DevSandbox --result-format human --code-coverage --wait 10
+      - name: Authenticate Dev Org
+        run: |
+          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" > sfdx_auth.txt
+          sfdx auth:sfdxurl:store -f sfdx_auth.txt -a DevSandbox
 
-      # Step 6: Send email notification on failure
+      - name: Run Apex Tests
+        run: |
+          sfdx force:apex:test:run -u DevSandbox --resultformat human --codecoverage --wait 10
       - name: Send Email on Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3

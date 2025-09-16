@@ -12,7 +12,6 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # Install Salesforce CLI
       - name: Install Salesforce CLI
         run: |
           sudo apt-get update
@@ -23,7 +22,6 @@ jobs:
           ./sfdx/install
           sfdx version
 
-      # Authenticate Dev Org using sfdx-url-file
       - name: Authenticate Dev Org
         run: |
           echo "${{ secrets.DEV_SFDX_AUTH_URL }}" > sfdx_auth.txt
@@ -33,17 +31,4 @@ jobs:
         run: |
           sfdx force:source:deploy -p force-app/main/default,core/main/default,utility/main/default \
           -u DevSandbox --checkonly --ignorewarnings --json
-      - name: Send Email on Failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 Salesforce Apex Test Failure on branch ${{ github.ref }}"
-          to: apadmajan650@gmail.com
-          from: ci-cd@yourcompany.com
-          body: |
-            Apex tests failed on branch ${{ github.ref }}.
-            Check logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      
