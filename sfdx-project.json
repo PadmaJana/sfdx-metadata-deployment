@@ -3,10 +3,15 @@
     {
       "path": "force-app",
       "default": true
+    },
+    {
+      "path": "core"
+    },
+    {
+      "path": "utility"
     }
   ],
-  "name": "SFDX",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "64.0"
+  "sourceApiVersion": "58.0"
 }
