@@ -30,7 +30,9 @@ jobs:
     - name: Validate Deployment (Dry-Run CheckOnly)
       run: sf project deploy start --source-dir force-app --target-org CI --dry-run --test-level RunLocalTests
 
+    # ✅ Always cleanup Scratch Org so limit is not exceeded
     - name: Delete Scratch Org
+      if: always()
       run: sf org delete scratch --target-org CI --no-prompt || true
 
     - name: Send Email on Validation Failure
