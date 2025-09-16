@@ -18,13 +18,8 @@ jobs:
         run: npm install sfdx-cli --global
 
       # 3️⃣ Authenticate DevSandbox properly
-      - name: Authenticate Dev Org
-        run: |
-          # Remove any carriage returns or extra spaces
-          echo "${{ secrets.DEV_SFDX_AUTH_URL }}" | tr -d '\r' > sfdx_auth.txt
-          
-          # Authenticate and set default username for all steps
-          sfdx auth:sfdxurl:store -f sfdx_auth.txt --setdefaultusername -a DevSandbox
+      - name: Authenticate to DevSandbox
+        run: echo "${{ secrets.DEV_SF_AUTH_URL }}" | sf auth:sfdxurl:store --alias DevSandbox --sfdx-url-stdin
 
       # 4️⃣ Verify authentication
       - name: Verify DevSandbox
